@@ -1,2 +1,2 @@
 [console_scripts]
-nlsql = cli:main
+nlsql = cli:app

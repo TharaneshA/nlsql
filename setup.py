@@ -14,7 +14,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "nlsql=cli:main"
+            "nlsql=cli:app"
         ]
     },
 

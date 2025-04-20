@@ -1,6 +1,29 @@
 import os
 import json
 
+def setup_config():
+    """Interactive configuration setup for first-time users"""
+    config = {}
+    print("\n=== Gemini API Configuration ===")
+    
+    # Collect and validate API key
+    while True:
+        api_key = input('Enter your Gemini API key: ').strip()
+        if len(api_key) >= 20:
+            config['gemini_api_key'] = api_key
+            break
+        print('Invalid key - must be at least 20 characters')
+    
+    # Existing database setup
+    print("\n=== Database Configuration ===")
+    config['host'] = input('Database host [localhost]: ') or 'localhost'
+    config['user'] = input('Database user [root]: ') or 'root'
+    config['password'] = input('Database password: ')
+    config['database'] = input('Database name: ')
+    
+    return config
+
+
 def load_config(config_path=None):
     """Load configuration from a JSON file or environment variables."""
     config = {}
