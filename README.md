@@ -48,6 +48,7 @@ nlsql "List all products in the electronics category" --demo
 ```bash
 nlsql --help
 ```
+![image](https://github.com/user-attachments/assets/5068fc89-b48d-4ae7-8cdf-d695eebb2ef9)
 
 ## Examples
 **Query with conditions:**
