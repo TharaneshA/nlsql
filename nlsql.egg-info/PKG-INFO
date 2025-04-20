@@ -1,0 +1,11 @@
+Metadata-Version: 2.1
+Name: nlsql
+Version: 0.1.0
+Summary: Natural Language to SQL CLI Tool
+Author: Your Name
+Author-email: your.email@example.com
+Classifier: Programming Language :: Python :: 3
+Classifier: Operating System :: OS Independent
+Classifier: License :: OSI Approved :: MIT License
+Requires-Python: >=3.7
+License-File: LICENSE

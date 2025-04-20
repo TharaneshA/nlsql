@@ -16,7 +16,6 @@ def main():
         "question",
         type=str,
         nargs="?",
-        default="",
         help="Plain English database query"
     )
     parser.add_argument(
@@ -63,7 +62,7 @@ def main():
     )
     args = parser.parse_args()
 
-    if not args.question and not args.demo:
+    if not args.question:
         parser.print_help()
         sys.exit(1)
 
@@ -113,16 +112,6 @@ def main():
                 }
             }
         }
-
-        sample_query = "Show me all users with their email addresses"
-        try:
-            # Mock successful SQL generation for demo
-            sql = "SELECT username, email FROM users;"
-            print("\nGenerated SQL:")
-            print_sql(sql)
-            print("\nDemo successful! Note: Using real database requires valid API key in config.json")
-        except Exception as e:
-            print(f"\nError in demo mode: {str(e)}")
         # Use a default API key for demo mode
         cfg = {"gemini_api_key": ""}
     else:

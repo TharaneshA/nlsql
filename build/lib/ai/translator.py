@@ -1,9 +1,7 @@
 import requests
 import json
 
-def generate_sql(nl_query, schema, api_key, temperature=0.2):
-    if not api_key or len(api_key) < 20:
-        raise ValueError("Invalid Gemini API key. Please check your configuration.")
+def generate_sql(nl_query, schema, api_key="AIzaSyCv2o2UCfKKpfSmKuy2i6HgkBr-TVPseqM", temperature=0.2):
     """Send a prompt to Gemini API to translate NL to SQL."""
     prompt = build_prompt(nl_query, schema)
     headers = {
@@ -22,7 +20,7 @@ def generate_sql(nl_query, schema, api_key, temperature=0.2):
         }
     }
     response = requests.post(
-        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}",
+        f"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={api_key}",
         headers=headers,
         data=json.dumps(data)
     )
