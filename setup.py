@@ -14,9 +14,10 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "nlsql=nlsql.cli:main"
+            "nlsql=cli:main"
         ]
     },
+    py_modules=["cli"],
     python_requires=">=3.7",
     include_package_data=True,
     classifiers=[

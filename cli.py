@@ -1,5 +1,6 @@
 import argparse
 import sys
+import json
 from utils import config
 from db.connector import MySQLConnector
 from db.schema import get_schema
@@ -54,26 +55,81 @@ def main():
         action="store_true",
         help="Force schema refresh"
     )
+    parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Run in demo mode without database connection"
+    )
     args = parser.parse_args()
 
     if not args.question:
         parser.print_help()
         sys.exit(1)
 
-    cfg = config.load_config(args.config)
-    if args.database:
-        cfg['database'] = args.database
-    if not cfg.get('password'):
+    # Demo mode uses a sample schema instead of connecting to a database
+    if args.demo:
+        print("Running in demo mode with sample schema...")
+        # Sample schema for demonstration
+        schema = {
+            "tables": {
+                "users": {
+                    "columns": [
+                        {"Field": "id", "Type": "int", "Key": "PRI"},
+                        {"Field": "username", "Type": "varchar(50)"},
+                        {"Field": "email", "Type": "varchar(100)"},
+                        {"Field": "created_at", "Type": "datetime"}
+                    ],
+                    "foreign_keys": []
+                },
+                "products": {
+                    "columns": [
+                        {"Field": "id", "Type": "int", "Key": "PRI"},
+                        {"Field": "name", "Type": "varchar(100)"},
+                        {"Field": "price", "Type": "decimal(10,2)"},
+                        {"Field": "category_id", "Type": "int"}
+                    ],
+                    "foreign_keys": [
+                        {"COLUMN_NAME": "category_id", "REFERENCED_TABLE_NAME": "categories", "REFERENCED_COLUMN_NAME": "id"}
+                    ]
+                },
+                "categories": {
+                    "columns": [
+                        {"Field": "id", "Type": "int", "Key": "PRI"},
+                        {"Field": "name", "Type": "varchar(50)"}
+                    ],
+                    "foreign_keys": []
+                },
+                "orders": {
+                    "columns": [
+                        {"Field": "id", "Type": "int", "Key": "PRI"},
+                        {"Field": "user_id", "Type": "int"},
+                        {"Field": "total", "Type": "decimal(10,2)"},
+                        {"Field": "created_at", "Type": "datetime"}
+                    ],
+                    "foreign_keys": [
+                        {"COLUMN_NAME": "user_id", "REFERENCED_TABLE_NAME": "users", "REFERENCED_COLUMN_NAME": "id"}
+                    ]
+                }
+            }
+        }
+        # Use a default API key for demo mode
+        cfg = {"gemini_api_key": ""}
+    else:
+        # Normal mode with database connection
+        cfg = config.load_config(args.config)
+        if args.database:
+            cfg['database'] = args.database
+        if not cfg.get('password'):
+            try:
+                cfg['password'] = getpass.getpass(f"Password for MySQL user '{cfg.get('user','root')}': ")
+            except Exception:
+                pass
+        connector = MySQLConnector(cfg)
         try:
-            cfg['password'] = getpass.getpass(f"Password for MySQL user '{cfg.get('user','root')}': ")
-        except Exception:
-            pass
-    connector = MySQLConnector(cfg)
-    try:
-        schema = get_schema(connector, force_refresh=args.refresh)
-    except Exception as e:
-        print(f"Error extracting schema: {e}")
-        sys.exit(2)
+            schema = get_schema(connector, force_refresh=args.refresh)
+        except Exception as e:
+            print(f"Error extracting schema: {e}")
+            sys.exit(2)
     try:
         sql = generate_sql(args.question, schema, cfg.get('gemini_api_key',''))
     except Exception as e:
@@ -81,8 +137,10 @@ def main():
         sys.exit(3)
     print("\nGenerated SQL:")
     print_sql(sql)
-    do_execute = args.execute and not args.no_execute
-    if do_execute:
+    do_execute = args.execute and not args.no_execute and not args.demo
+    if args.demo:
+        print("\nDemo mode: Query execution is not available in demo mode.")
+    elif do_execute:
         confirm = input("\nExecute this query? [y/N]: ").strip().lower()
         if confirm != 'y':
             print("Query execution cancelled.")
