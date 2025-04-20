@@ -115,16 +115,25 @@ def main():
         }
 
         sample_query = "Show me all users with their email addresses"
+        api_key = input("\nEnter Gemini API key for validation: ")
+        cfg = {"gemini_api_key": api_key}
+        
         try:
-            # Mock successful SQL generation for demo
-            sql = "SELECT username, email FROM users;"
-            print("\nGenerated SQL:")
-            print_sql(sql)
-            print("\nDemo successful! Note: Using real database requires valid API key in config.json")
+            print("\nTesting API connection...")
+            test_prompt = "Return ONLY the word 'success'"
+            sql = generate_sql(test_prompt, schema, api_key)
+            print(f"\nAPI Response: {sql}")
+            
+            if "success" in sql.lower():
+                print("\nAPI Validation Successful!")
+                print("\nSample query demonstration:")
+                sql = generate_sql(sample_query, schema, api_key)
+                print_sql(sql)
+            else:
+                print("\nAPI Validation Failed - Unexpected response format")
         except Exception as e:
-            print(f"\nError in demo mode: {str(e)}")
-        # Use a default API key for demo mode
-        cfg = {"gemini_api_key": ""}
+            print(f"\nAPI Error: {str(e)}")
+            sys.exit(3)
     else:
         # Normal mode with database connection
         cfg = config.load_config(args.config)
