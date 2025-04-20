@@ -11,7 +11,7 @@ A natural language SQL interface for MySQL databases.
 
 1. Clone the repository:
    ```sh
-   git clone https://github.com/yourusername/nlsql.git
+   git clone https://github.com/TharaneshA/nlsql.git
    cd nlsql
    ```
 2. Install dependencies:
