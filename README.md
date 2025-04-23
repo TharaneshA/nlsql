@@ -39,6 +39,8 @@ nlsql profile create <profile-name>
 
 ## Usage
 
+![image](https://github.com/user-attachments/assets/062da90e-5d3b-45c7-a654-341dd100abfe)
+
 ### Managing Profiles
 
 - List profiles: `nlsql profile list`
