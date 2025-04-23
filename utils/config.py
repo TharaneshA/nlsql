@@ -2,7 +2,7 @@ import os
 import json
 import typer
 from pathlib import Path
-from typer.models import Choice
+from typing import Optional, List, Literal
 
 # Constants
 CONFIG_DIR = Path.home() / ".nlsql"
@@ -30,9 +30,8 @@ def setup_config():
     if typer.confirm("Do you want to set up a database profile now?", default=True):
         profile_name = typer.prompt("Profile name", default="default")
         
-        # Database type selection
-        db_types = ["MySQL", "PostgreSQL", "SQLite"]
-        db_type = typer.prompt("Database type", type=Choice(db_types))
+        # Database type selection using Literal
+        db_type = typer.prompt("Database type", type=Literal["MySQL", "PostgreSQL", "SQLite"])
         
         # Database connection details
         config['db_type'] = db_type

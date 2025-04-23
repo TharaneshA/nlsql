@@ -5,12 +5,18 @@ import getpass
 import datetime
 from typing import Optional, List
 from pathlib import Path
-from typer.models import Choice
+import typer
 
 from utils.config import setup_config, load_config
 from db.connector import MySQLConnector
 from ai.translator import generate_sql
 from utils.formatting import print_sql, print_result
+import enum
+
+class DatabaseType(enum.Enum):
+    MYSQL = "MySQL"
+    POSTGRESQL = "PostgreSQL"
+    SQLITE = "SQLite"
 
 # Main app
 app = typer.Typer(add_completion=False, help="Natural Language to SQL CLI Tool")
@@ -183,8 +189,8 @@ def profile_create(name: str):
     typer.echo(f"Creating new profile '{name}'")
     
     # Interactive prompts for connection details
-    db_types = ["MySQL", "PostgreSQL", "SQLite"]
-    db_type = typer.prompt("Database type", type=Choice(db_types))
+    db_types = [DatabaseType.MYSQL.value, DatabaseType.POSTGRESQL.value, DatabaseType.SQLITE.value]
+    db_type = typer.prompt("Database type", type=DatabaseType)
     host = typer.prompt("Host", default="localhost")
     port = typer.prompt("Port", default="3306" if db_type == "MySQL" else "5432")
     database = typer.prompt("Database name")
@@ -238,13 +244,17 @@ def profile_use(name: str):
     typer.echo(f"Switched to profile '{name}'")
 
 @profile_app.command("edit")
+@profile_app.command("edit")
 def profile_edit(name: str):
     """Edit an existing profile"""
     profile = load_profile(name)
     
     # Interactive prompts with current values as defaults
-    db_types = ["MySQL", "PostgreSQL", "SQLite"]
-    profile["type"] = typer.prompt("Database type", type=Choice(db_types), default=profile["type"])
+    profile["type"] = typer.prompt(
+        "Database type", 
+        type=DatabaseType, 
+        default=DatabaseType(profile["type"])
+    ).value
     profile["host"] = typer.prompt("Host", default=profile["host"])
     profile["port"] = typer.prompt("Port", default=profile["port"])
     profile["database"] = typer.prompt("Database name", default=profile["database"])
@@ -253,9 +263,10 @@ def profile_edit(name: str):
     if new_password:
         profile["password"] = new_password
     profile["options"] = typer.prompt("Connection options", default=profile.get("options", ""))
-    
+
     save_profile(name, profile)
     typer.echo(f"Profile '{name}' updated successfully!")
+
 
 @profile_app.command("delete")
 def profile_delete(name: str):
