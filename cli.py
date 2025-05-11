@@ -19,14 +19,14 @@ class DatabaseType(enum.Enum):
     SQLITE = "SQLite"
 
 # Main app
-app = typer.Typer(add_completion=False, help="Natural Language to SQL CLI Tool")
+app = typer.Typer(add_completion=False, help="Natural Language to SQL CLI Tool - Convert English to SQL queries")
 
 # Subcommands
-config_app = typer.Typer(help="API and global configuration management")
-profile_app = typer.Typer(help="Manage database connection profiles")
-connect_app = typer.Typer(help="Connect using active profile")
-list_app = typer.Typer(help="List databases/tables in current connection")
-saved_app = typer.Typer(help="Manage saved queries")
+config_app = typer.Typer(help="Manage API keys and global settings")
+profile_app = typer.Typer(help="Create and manage database connection profiles")
+connect_app = typer.Typer(help="Connect to a database using the active profile")
+list_app = typer.Typer(help="List available databases and tables in current connection")
+saved_app = typer.Typer(help="Save and manage frequently used queries")
 
 # Register subcommands
 app.add_typer(config_app, name="config")
@@ -373,15 +373,17 @@ def cache_schema():
     typer.echo("Schema cached successfully")
 
 # Query command
-@app.command()
+@app.command(name="query", help="Generate SQL from natural language and optionally execute it")
+@app.command(name="q", hidden=True)  # Short alias
 def query(
-    text: str = typer.Argument(..., help="Natural language question to translate to SQL"),
-    edit: bool = typer.Option(False, "--edit", "-e", help="Edit before execution"),
-    execute: bool = typer.Option(False, "--execute", "-x", help="Execute without confirmation"),
-    save: Optional[str] = typer.Option(None, "--save", help="Save query for later"),
-    format: str = typer.Option("table", "--format", help="Output format (table/json/csv)"),
-    export: Optional[Path] = typer.Option(None, "--export", help="Export results to file"),
-    explain: bool = typer.Option(False, "--explain", help="Show query execution plan")
+    text: str = typer.Argument(..., help="Your question in plain English (e.g. 'show recent orders')"),
+    edit: bool = typer.Option(False, "--edit", "-e", help="Open the generated SQL in editor for modifications"),
+    execute: bool = typer.Option(False, "--execute", "-x", help="Execute the query immediately without confirmation"),
+    save: Optional[str] = typer.Option(None, "--save", "-s", help="Save the query with a name for later use"),
+    format: str = typer.Option("table", "--format", "-f", help="Output format: table, json, or csv"),
+    export: Optional[Path] = typer.Option(None, "--export", help="Save query results to a file"),
+    explain: bool = typer.Option(False, "--explain", help="Show the database execution plan for the query"),
+    limit: Optional[int] = typer.Option(None, "--limit", "-l", help="Limit the number of results returned")
 ):
     """Generate and optionally run query"""
     active_profile = get_active_profile()
