@@ -13,6 +13,8 @@ nlsql.egg-info/dependency_links.txt
 nlsql.egg-info/entry_points.txt
 nlsql.egg-info/requires.txt
 nlsql.egg-info/top_level.txt
+scripts/__init__.py
+scripts/setup_test_db.py
 utils/__init__.py
 utils/config.py
 utils/formatting.py

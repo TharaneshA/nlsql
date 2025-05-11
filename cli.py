@@ -404,18 +404,46 @@ def query(
     
     # Generate SQL
     typer.echo(f"Translating: {text}")
-    schema = {"tables": ["users", "orders", "products"]}  # Placeholder
-    sql_query = generate_sql(text, schema, api_key)
+    
+    # Get actual schema from database if connected
+    schema = None
+    try:
+        from db.connector import DBConnector
+        connector = DBConnector.create_connector(profile)
+        connector.connect()
+        schema = connector.get_schema()
+        connector.close()
+    except Exception as e:
+        typer.echo(f"Warning: Could not fetch schema from database: {str(e)}")
+        # Fallback to placeholder schema
+        schema = {"tables": ["users", "orders", "products"]}
+    
+    # Get conversation history for context
+    history = []
+    if HISTORY_FILE.exists():
+        try:
+            with open(HISTORY_FILE, 'r') as f:
+                history = json.load(f)
+        except json.JSONDecodeError:
+            pass
+    
+    # Generate SQL with enhanced context
+    sql_query = generate_sql(text, schema, api_key, history=history)
     print_sql(sql_query)
     
     # Edit if requested
     if edit:
-        typer.echo("\n--- Edit SQL (type new SQL and press Enter, or leave blank to keep) ---")
-        new_sql = typer.prompt("Edit SQL", default=sql_query, show_default=False)
-        if new_sql != sql_query:
-            sql_query = new_sql
-            typer.echo("SQL updated:")
-            print_sql(sql_query)
+        typer.echo("\n--- Edit SQL (press Enter to execute, Ctrl+C to cancel) ---")
+        # Pre-populate the prompt with the generated SQL
+        try:
+            new_sql = typer.prompt("", default=sql_query, show_default=True)
+            if new_sql != sql_query:
+                sql_query = new_sql
+                typer.echo("\nSQL updated:")
+                print_sql(sql_query)
+        except KeyboardInterrupt:
+            typer.echo("\nEdit cancelled")
+            raise typer.Exit()
     
     # Save if requested
     if save:
@@ -514,6 +542,22 @@ def version():
     typer.echo("NLSQL v0.1.0")
     typer.echo("Natural Language to SQL CLI Tool")
     typer.echo("https://github.com/TharaneshA/nlsql")
+
+# Setup test database command
+@app.command("setup-test-db")
+def setup_test_db(
+    users: int = typer.Option(50, help="Number of users to generate"),
+    products: int = typer.Option(100, help="Number of products to generate"),
+    orders: int = typer.Option(200, help="Number of orders to generate"),
+    db_path: Optional[str] = typer.Option(None, help="Custom path for the test database")
+):
+    """Set up a test SQLite database with sample data for demonstration"""
+    try:
+        from scripts.setup_test_db import setup
+        setup(db_path=db_path, users=users, products=products, orders=orders)
+    except ImportError as e:
+        typer.echo(f"Error: Could not import setup script: {str(e)}")
+        typer.echo("Make sure the scripts directory is in your Python path.")
 
 # Main entry point
 @app.callback(invoke_without_command=True)
