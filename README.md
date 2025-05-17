@@ -24,18 +24,84 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-## Setup
+## 🔧 Setting Up NLSQL with Your Local Database
 
-1. Run the initial setup:
-```bash
-nlsql setup
-```
+To use **NLSQL** with your local database, you need to create a database connection profile. This allows the CLI to connect to your MySQL, PostgreSQL, or SQLite database and translate natural language into SQL queries.
 
-2. Enter your Gemini API key when prompted
-3. Optionally set up a database profile during setup, or create one later using:
+---
+
+### ✅ Step 1: Create a Database Profile
+
+Run the following command to start the profile creation wizard:
+
 ```bash
 nlsql profile create <profile-name>
 ```
+Replace `<profile-name>` with something meaningful like `my_local_db`.
+
+### 📋 Step 2: Enter Connection Details
+You'll be prompted to enter your database connection information:
+
+| Prompt | Example (MySQL) | Example (SQLite) |
+|--------|----------------|------------------|
+| Database type | MySQL | SQLite |
+| Host | localhost | (leave blank) |
+| Port | 3306 | (leave blank) |
+| Database name | nlsql_demo | /path/to/your/database.db |
+| Username | root | (leave blank) |
+| Password | your_password | (leave blank) |
+| Connection options | (optional) | (optional) |
+
+💡 **Tip**: For SQLite, you can use `:memory:` to create an in-memory database.
+
+### 🔁 Step 3: Set Active Profile
+After creating a profile, set it as the active one:
+```bash
+nlsql profile use <profile-name>
+```
+
+### 🧪 Step 4: Test the Connection
+You can test the database connection by listing tables:
+```bash
+nlsql list tables
+```
+
+### 💡 Example: MySQL Setup
+```bash
+nlsql profile create my_mysql_db
+
+# Prompts:
+# Database type: MySQL
+# Host: localhost
+# Port: 3306
+# Database name: nlsql_demo
+# Username: root
+# Password: your_password
+
+nlsql profile use my_mysql_db
+nlsql list tables
+```
+
+### 💡 Example: SQLite Setup
+```bash
+nlsql profile create my_sqlite_db
+
+# Prompts:
+# Database type: SQLite
+# Host: (leave blank)
+# Port: (leave blank)
+# Database name: ./nlsql_demo.db
+# Username: (leave blank)
+# Password: (leave blank)
+
+nlsql profile use my_sqlite_db
+nlsql list tables
+```
+
+### 🔐 Notes on Security & Config
+- 🔒 Passwords are stored in plain text inside profile files. For secure environments, consider using environment variables.
+- 📁 Profiles are stored in: `~/.nlsql/profiles/`
+- ✅ The active profile is stored in: `~/.nlsql/active_profile.txt`
 
 ## Usage
 

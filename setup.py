@@ -10,7 +10,8 @@ setup(
     install_requires=[
         "mysql-connector-python>=8.0.0",
         "pandas>=1.0.0",
-        "requests>=2.0.0"
+        "requests>=2.0.0",
+        "InquirerPy>=0.3.4"
     ],
     entry_points={
         "console_scripts": [

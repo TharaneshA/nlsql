@@ -12,6 +12,8 @@ from db.connector import MySQLConnector
 from ai.translator import generate_sql
 from utils.formatting import print_sql, print_result
 import enum
+from InquirerPy import inquirer
+
 
 class DatabaseType(enum.Enum):
     MYSQL = "MySQL"
@@ -188,9 +190,27 @@ def profile_create(name: str):
     """Create a new database profile"""
     typer.echo(f"Creating new profile '{name}'")
     
+    # Import InquirerPy for interactive selection
+    try:
+        from InquirerPy import inquirer
+        from InquirerPy.base.control import Choice
+    except ImportError:
+        typer.echo("Installing required dependency for interactive selection...")
+        import subprocess
+        subprocess.check_call(["pip", "install", "InquirerPy"])
+        from InquirerPy import inquirer
+        from InquirerPy.base.control import Choice
+    
     # Interactive prompts for connection details
     db_types = [DatabaseType.MYSQL.value, DatabaseType.POSTGRESQL.value, DatabaseType.SQLITE.value]
-    db_type = typer.prompt("Database type", type=DatabaseType)
+    
+    # Use InquirerPy for interactive database type selection with arrow keys
+    db_type = inquirer.select(
+        message="Select database type:",
+        choices=db_types,
+        default=db_types[0]
+    ).execute()
+    
     host = typer.prompt("Host", default="localhost")
     port = typer.prompt("Port", default="3306" if db_type == "MySQL" else "5432")
     database = typer.prompt("Database name")
@@ -318,12 +338,49 @@ def list_items(ctx: typer.Context, databases: bool = typer.Option(False, "--data
     profile = load_profile(active_profile)
     typer.echo(f"Listing from {profile['type']} database '{profile['database']}'")
     
-    # This would connect to the database and list tables
-    # For now, just show a placeholder
-    typer.echo("Available tables:")
-    typer.echo("- users")
-    typer.echo("- products")
-    typer.echo("- orders")
+    try:
+        # Connect to the database and list tables
+        from db.connector import DBConnector
+        connector = DBConnector.create_connector(profile)
+        connector.connect()
+        
+        if databases:
+            # Show available databases
+            if profile['type'] == "MySQL":
+                result, columns = connector.execute_query("SHOW DATABASES")
+                typer.echo("Available databases:")
+                for row in result:
+                    typer.echo(f"- {row[0]}")
+            elif profile['type'] == "PostgreSQL":
+                result, columns = connector.execute_query("SELECT datname FROM pg_database WHERE datistemplate = false")
+                typer.echo("Available databases:")
+                for row in result:
+                    typer.echo(f"- {row[0]}")
+            elif profile['type'] == "SQLite":
+                typer.echo("SQLite does not support multiple databases in the same file.")
+        else:
+            # Show tables in current database
+            if profile['type'] == "MySQL":
+                result, columns = connector.execute_query("SHOW TABLES")
+                typer.echo("Available tables:")
+                for row in result:
+                    typer.echo(f"- {row[0]}")
+            elif profile['type'] == "PostgreSQL":
+                result, columns = connector.execute_query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+                typer.echo("Available tables:")
+                for row in result:
+                    typer.echo(f"- {row[0]}")
+            elif profile['type'] == "SQLite":
+                result, columns = connector.execute_query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+                typer.echo("Available tables:")
+                for row in result:
+                    typer.echo(f"- {row[0]}")
+        
+        connector.close()
+    except Exception as e:
+        typer.echo(f"Error connecting to database: {str(e)}")
+        typer.echo("Please check your connection profile and try again.")
+        return
 
 @list_app.command("tables")
 def list_tables(db: Optional[str] = None):
@@ -337,11 +394,43 @@ def list_tables(db: Optional[str] = None):
     db_name = db or profile['database']
     typer.echo(f"Tables in {db_name}:")
     
-    # This would connect to the database and list tables
-    # For now, just show a placeholder
-    typer.echo("- users")
-    typer.echo("- products")
-    typer.echo("- orders")
+    try:
+        # Connect to the database and list tables
+        from db.connector import DBConnector
+        connector = DBConnector.create_connector(profile)
+        connector.connect()
+        
+        # If a specific database was provided, use it
+        if db and profile['type'] in ["MySQL", "PostgreSQL"]:
+            if profile['type'] == "MySQL":
+                connector.execute_query(f"USE {db}")
+            elif profile['type'] == "PostgreSQL":
+                # Close current connection and reconnect to the specified database
+                connector.close()
+                profile_copy = profile.copy()
+                profile_copy['database'] = db
+                connector = DBConnector.create_connector(profile_copy)
+                connector.connect()
+        
+        # Get tables based on database type
+        if profile['type'] == "MySQL":
+            result, columns = connector.execute_query("SHOW TABLES")
+        elif profile['type'] == "PostgreSQL":
+            result, columns = connector.execute_query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+        elif profile['type'] == "SQLite":
+            result, columns = connector.execute_query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+        
+        if not result:
+            typer.echo("No tables found in this database.")
+        else:
+            for row in result:
+                typer.echo(f"- {row[0]}")
+        
+        connector.close()
+    except Exception as e:
+        typer.echo(f"Error listing tables: {str(e)}")
+        typer.echo("Please check your connection profile and try again.")
+        return
 
 # Describe command
 @app.command()
@@ -352,12 +441,53 @@ def describe(table: str):
         typer.echo("No active profile. Create one with: nlsql profile create <name>")
         return
     
+    profile = load_profile(active_profile)
     typer.echo(f"Schema for table '{table}':")
-    # This would connect to the database and show the schema
-    # For now, just show a placeholder
-    typer.echo("id INT PRIMARY KEY")
-    typer.echo("name VARCHAR(255)")
-    typer.echo("created_at TIMESTAMP")
+    
+    try:
+        # Connect to the database and get table schema
+        from db.connector import DBConnector
+        connector = DBConnector.create_connector(profile)
+        
+        # Get schema based on database type
+        if profile['type'] == "MySQL":
+            result, columns = connector.execute_query(f"DESCRIBE `{table}`")
+            for row in result:
+                field = row[0]
+                type_info = row[1]
+                null = "NULL" if row[2] == "YES" else "NOT NULL"
+                key = row[3] if row[3] else ""
+                default = f"DEFAULT {row[4]}" if row[4] is not None else ""
+                extra = row[5] if row[5] else ""
+                typer.echo(f"{field} {type_info} {null} {key} {default} {extra}".strip())
+        elif profile['type'] == "PostgreSQL":
+            result, columns = connector.execute_query(f"""
+                SELECT column_name, data_type, is_nullable, column_default
+                FROM information_schema.columns
+                WHERE table_name = '{table}'
+                ORDER BY ordinal_position
+            """)
+            for row in result:
+                field = row[0]
+                type_info = row[1]
+                null = "NULL" if row[2] == "YES" else "NOT NULL"
+                default = f"DEFAULT {row[3]}" if row[3] is not None else ""
+                typer.echo(f"{field} {type_info} {null} {default}".strip())
+        elif profile['type'] == "SQLite":
+            result, columns = connector.execute_query(f"PRAGMA table_info({table})")
+            for row in result:
+                cid = row[0]
+                field = row[1]
+                type_info = row[2]
+                not_null = "NOT NULL" if row[3] == 1 else "NULL"
+                default = f"DEFAULT {row[4]}" if row[4] is not None else ""
+                pk = "PRIMARY KEY" if row[5] == 1 else ""
+                typer.echo(f"{field} {type_info} {not_null} {default} {pk}".strip())
+        
+        connector.close()
+    except Exception as e:
+        typer.echo(f"Error describing table: {str(e)}")
+        typer.echo("Please check your connection profile and try again.")
 
 # Cache schema command
 @app.command("cache-schema")
@@ -369,8 +499,32 @@ def cache_schema():
         return
     
     typer.echo(f"Caching schema for active profile '{active_profile}'...")
-    # This would connect to the database and cache the schema
-    typer.echo("Schema cached successfully")
+    
+    try:
+        # Connect to the database and cache the schema
+        from db.connector import DBConnector
+        from db.schema import get_schema
+        
+        profile = load_profile(active_profile)
+        connector = DBConnector.create_connector(profile)
+        connector.connect()
+        
+        # Get and cache the schema with sample data
+        schema = get_schema(connector, force_refresh=True, include_sample_data=True)
+        
+        # Save the schema to a cache file
+        cache_dir = CONFIG_DIR / "schema_cache"
+        cache_dir.mkdir(exist_ok=True)
+        cache_file = cache_dir / f"{active_profile}.json"
+        
+        with open(cache_file, 'w') as f:
+            json.dump(schema, f, indent=2)
+        
+        connector.close()
+        typer.echo(f"Schema cached successfully to {cache_file}")
+    except Exception as e:
+        typer.echo(f"Error caching schema: {str(e)}")
+        typer.echo("Please check your connection profile and try again.")
 
 # Query command
 @app.command(name="query", help="Generate SQL from natural language and optionally execute it")
@@ -431,6 +585,24 @@ def query(
     
     # Generate SQL with enhanced context
     sql_query = generate_sql(text, schema, api_key, history=history)
+    
+    # Clean up SQL query by removing markdown formatting if present
+    if sql_query.startswith('```'):
+        # Extract SQL from markdown code block
+        parts = sql_query.split('```')
+        if len(parts) >= 3:  # Has opening and closing markers
+            sql_content = parts[1]
+            # Remove language identifier if present
+            if sql_content.startswith('sql'):
+                sql_query = sql_content[3:].strip()
+            else:
+                sql_query = sql_content.strip()
+        else:  # Only has opening marker
+            sql_query = sql_query.replace('```sql', '').replace('```', '').strip()
+    
+    # Ensure no markdown markers remain
+    sql_query = sql_query.replace('```', '').strip()
+    
     print_sql(sql_query)
     
     # Edit if requested
@@ -458,14 +630,36 @@ def query(
     # Execute if requested
     if execute:
         typer.echo("Executing query...")
-        # This would connect to the database and execute the query
-        # For now, just show a placeholder
-        result = [(1, "John", "2023-01-01"), (2, "Jane", "2023-02-01")]
-        columns = ["id", "name", "date"]
-        
-        if explain:
-            typer.echo("Execution plan:")
-            typer.echo("SIMPLE TABLE ACCESS")
+        try:
+            # Connect to the database using the active profile
+            from db.connector import DBConnector
+            connector = DBConnector.create_connector(profile)
+            connector.connect()
+            
+            # Add EXPLAIN if requested
+            query_to_execute = f"EXPLAIN {sql_query}" if explain else sql_query
+            
+            # Add LIMIT if specified
+            if limit is not None and "LIMIT" not in sql_query.upper():
+                query_to_execute = f"{query_to_execute} LIMIT {limit}"
+            
+            # Execute the query and get actual results
+            if explain:
+                typer.echo("Execution plan:")
+                result, columns = connector.execute_query(query_to_execute)
+                print_result(result, columns, output_format=format)
+                # Execute the actual query after showing the plan
+                query_to_execute = sql_query
+                if limit is not None and "LIMIT" not in sql_query.upper():
+                    query_to_execute = f"{query_to_execute} LIMIT {limit}"
+                result, columns = connector.execute_query(query_to_execute)
+            else:
+                result, columns = connector.execute_query(query_to_execute)
+            
+            connector.close()
+        except Exception as e:
+            typer.echo(f"Error executing query: {str(e)}")
+            raise typer.Exit(1)
         
         if export:
             typer.echo(f"Exporting results to {export}")
@@ -481,11 +675,27 @@ def run(name: str):
     typer.echo(f"Running saved query '{name}':")
     print_sql(sql_query)
     
-    # This would connect to the database and execute the query
-    # For now, just show a placeholder
-    result = [(1, "John", "2023-01-01"), (2, "Jane", "2023-02-01")]
-    columns = ["id", "name", "date"]
-    print_result(result, columns)
+    try:
+        # Connect to the database and execute the query
+        from db.connector import DBConnector
+        
+        active_profile = get_active_profile()
+        if not active_profile:
+            typer.echo("No active profile. Create one with: nlsql profile create <name>")
+            return
+        
+        profile = load_profile(active_profile)
+        connector = DBConnector.create_connector(profile)
+        connector.connect()
+        
+        # Execute the query
+        result, columns = connector.execute_query(sql_query)
+        print_result(result, columns)
+        
+        connector.close()
+    except Exception as e:
+        typer.echo(f"Error executing query: {str(e)}")
+        raise typer.Exit(1)
 
 # Saved queries commands
 @saved_app.command("list")

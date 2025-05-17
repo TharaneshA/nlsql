@@ -30,8 +30,22 @@ def setup_config():
     if typer.confirm("Do you want to set up a database profile now?", default=True):
         profile_name = typer.prompt("Profile name", default="default")
         
-        # Database type selection using Literal
-        db_type = typer.prompt("Database type", type=Literal["MySQL", "PostgreSQL", "SQLite"])
+        # Import InquirerPy for interactive selection
+        try:
+            from InquirerPy import inquirer
+        except ImportError:
+            typer.echo("Installing required dependency for interactive selection...")
+            import subprocess
+            subprocess.check_call(["pip", "install", "InquirerPy"])
+            from InquirerPy import inquirer
+        
+        # Database type selection using InquirerPy
+        db_types = ["MySQL", "PostgreSQL", "SQLite"]
+        db_type = inquirer.select(
+            message="Select database type:",
+            choices=db_types,
+            default=db_types[0]
+        ).execute()
         
         # Database connection details
         config['db_type'] = db_type

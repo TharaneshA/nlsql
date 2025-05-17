@@ -40,6 +40,16 @@ config.json
 *.sqlite
 *.db
 .env
+bash.exe.stackdump
+
+# Security and Keys
+*.pem
+*.key
+*.crt
+*.cer
+*.priv
+*.pub
+*.secret
 
 # Logs
 *.log
