@@ -1,3 +1,6 @@
+![image](https://github.com/user-attachments/assets/d94d0095-4490-4912-a83e-91e8d5771fcd)
+
+
 # NLSQL - Natural Language to SQL CLI Tool
 
 [![PyPI Version](https://img.shields.io/pypi/v/nlsql.svg)](https://pypi.org/project/nlsql/)
