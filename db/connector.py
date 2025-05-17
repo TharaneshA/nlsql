@@ -10,6 +10,23 @@ class DBConnector:
     def __init__(self, profile):
         self.profile = profile
         self.connection = None
+        self._transaction = False
+    
+    def __enter__(self):
+        """Context manager entry"""
+        if not self.connection:
+            self.connect()
+        self._transaction = True
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit"""
+        if self.connection:
+            if exc_type is None and self._transaction:
+                self.connection.commit()
+            else:
+                self.connection.rollback()
+            self._transaction = False
     
     def connect(self, password=None):
         """Connect to the database"""
@@ -66,7 +83,7 @@ class MySQLConnector(DBConnector):
         self.connection = self.pool.get_connection()
         return self.connection
     
-    def execute_query(self, query):
+    def execute_query(self, query, auto_commit=True):
         """Execute a SQL query and return results"""
         if not self.connection:
             self.connect()
@@ -79,6 +96,9 @@ class MySQLConnector(DBConnector):
         
         # Fetch results
         results = cursor.fetchall()
+        
+        if auto_commit and not self._transaction:
+            self.connection.commit()
         
         cursor.close()
         return results, columns
@@ -115,22 +135,31 @@ class PostgreSQLConnector(DBConnector):
         
         return self.connection
     
-    def execute_query(self, query):
-        """Execute a SQL query and return results"""
+    def execute_query(self, query, auto_commit=True):
+        """Execute a SQL query and return results with transaction management"""
         if not self.connection:
             self.connect()
         
         cursor = self.connection.cursor()
-        cursor.execute(query)
-        
-        # Get column names
-        columns = [desc[0] for desc in cursor.description] if cursor.description else []
-        
-        # Fetch results
-        results = cursor.fetchall()
-        
-        cursor.close()
-        return results, columns
+        try:
+            cursor.execute(query)
+            
+            # Get column names
+            columns = [desc[0] for desc in cursor.description] if cursor.description else []
+            
+            # Fetch results
+            results = cursor.fetchall()
+            
+            if auto_commit:
+                self.connection.commit()
+            
+            return results, columns
+        except Exception as e:
+            if auto_commit:
+                self.connection.rollback()
+            raise e
+        finally:
+            cursor.close()
     
     def get_schema(self, force_refresh=False):
         """Get the database schema (placeholder)"""
