@@ -4,6 +4,7 @@ import typer
 from pathlib import Path
 from typing import Optional, List, Literal
 
+
 # Constants
 CONFIG_DIR = Path.home() / ".nlsql"
 CONFIG_FILE = CONFIG_DIR / "config.json"
@@ -16,13 +17,37 @@ PROFILES_DIR.mkdir(exist_ok=True)
 def setup_config():
     """Interactive configuration setup for first-time users"""
     config = {}
-    typer.echo("\n=== Gemini API Configuration ===")
+    typer.echo("\n=== AI Provider Configuration ===")
     
-    # Collect and validate API key
+    # Import InquirerPy for interactive selection
+    try:
+        from InquirerPy import inquirer
+    except ImportError:
+        typer.echo("Installing required dependency for interactive selection...")
+        import subprocess
+        subprocess.check_call(["pip", "install", "InquirerPy"])
+        from InquirerPy import inquirer
+    
+    from ai.providers import AIProvider, ProviderConfig, get_default_model
+    
+    # AI Provider selection
+    provider_choices = [p.value for p in AIProvider]
+    provider = inquirer.select(
+        message="Select AI provider:",
+        choices=provider_choices,
+        default=provider_choices[0]
+    ).execute()
+    
+    # Get API key
     while True:
-        api_key = typer.prompt('Enter your Gemini API key').strip()
+        api_key = typer.prompt(f'Enter your {provider.title()} API key').strip()
         if len(api_key) >= 20:
-            config['gemini_api_key'] = api_key
+            provider_config = ProviderConfig(
+                name=provider,
+                api_key=api_key,
+                model=get_default_model(AIProvider(provider))
+            )
+            config['ai_provider'] = provider_config.to_dict()
             break
         typer.echo('Invalid key - must be at least 20 characters')
     

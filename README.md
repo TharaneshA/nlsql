@@ -98,10 +98,46 @@ nlsql profile use my_sqlite_db
 nlsql list tables
 ```
 
+## 🤖 AI Provider Configuration
+
+NLSQL supports multiple AI providers for natural language to SQL translation. You can configure your preferred AI service using the interactive setup process.
+
+### 🔧 Setting Up Your AI Provider
+
+1. Run the configuration command:
+```bash
+nlsql config setup
+```
+
+2. Select your preferred AI provider from the available options:
+- Gemini (Google)
+- OpenAI (GPT-4)
+- Anthropic (Claude)
+- Grok (Coming soon)
+
+3. Enter your API key for the selected provider
+
+### 🔄 Changing AI Provider
+
+To switch or update your AI provider configuration:
+```bash
+nlsql config set
+```
+
+This will launch an interactive menu where you can:
+- Select a different AI provider
+- Update API keys
+- View current configuration
+
 ### 🔐 Notes on Security & Config
-- 🔒 Passwords are stored in plain text inside profile files. For secure environments, consider using environment variables.
+- 🔒 API keys and passwords are stored in plain text inside config files. For secure environments, consider using environment variables.
 - 📁 Profiles are stored in: `~/.nlsql/profiles/`
 - ✅ The active profile is stored in: `~/.nlsql/active_profile.txt`
+- 🔑 Environment variables for API keys:
+  - GEMINI_API_KEY
+  - OPENAI_API_KEY
+  - ANTHROPIC_API_KEY
+  - GROK_API_KEY
 
 ## Usage
 

@@ -126,6 +126,35 @@ def setup():
     typer.echo("\nNext, create a database profile with: nlsql profile create <name>")
 
 # Config commands
+@config_app.callback(invoke_without_command=True)
+def config_callback(ctx: typer.Context):
+    """Show available config commands when no subcommand is provided"""
+    if ctx.invoked_subcommand is not None:
+        return
+    
+    # Import InquirerPy for interactive selection
+    try:
+        from InquirerPy import inquirer
+    except ImportError:
+        typer.echo("Installing required dependency for interactive selection...")
+        import subprocess
+        subprocess.check_call(["pip", "install", "InquirerPy"])
+        from InquirerPy import inquirer
+    
+    # Show available config commands
+    action = inquirer.select(
+        message="Select config action:",
+        choices=["list", "set", "unset"],
+        default="list"
+    ).execute()
+    
+    if action == "list":
+        config_list()
+    elif action == "set":
+        config_set_interactive()
+    elif action == "unset":
+        config_unset_interactive()
+
 @config_app.command("list")
 def config_list():
     """List all config settings"""
@@ -139,13 +168,17 @@ def config_list():
     typer.echo("Current configuration:")
     for key, value in config.items():
         # Mask sensitive values
-        if key in ['gemini_api_key', 'password']:
+        if key in ['api_key', 'password'] or key.endswith('_api_key'):
             value = "*" * 8
         typer.echo(f"{key}: {value}")
 
 @config_app.command("set")
-def config_set(key_value: str):
+def config_set(key_value: Optional[str] = None):
     """Set a config value (API_KEY, etc.)"""
+    if key_value is None:
+        config_set_interactive()
+        return
+    
     if "=" not in key_value:
         typer.echo("Invalid format. Use KEY=VALUE")
         return
@@ -166,9 +199,54 @@ def config_set(key_value: str):
     
     typer.echo(f"Config value '{key}' set successfully")
 
+def config_set_interactive():
+    """Interactive config value setting"""
+    from ai.providers import AIProvider
+    
+    # Import InquirerPy for interactive selection
+    try:
+        from InquirerPy import inquirer
+    except ImportError:
+        typer.echo("Installing required dependency for interactive selection...")
+        import subprocess
+        subprocess.check_call(["pip", "install", "InquirerPy"])
+        from InquirerPy import inquirer
+    
+    # Select AI provider
+    provider_choices = [p.value for p in AIProvider]
+    provider = inquirer.select(
+        message="Select AI provider:",
+        choices=provider_choices,
+        default=provider_choices[0]
+    ).execute()
+    
+    # Get API key
+    while True:
+        api_key = typer.prompt(f'Enter your {provider.title()} API key', hide_input=True).strip()
+        if len(api_key) >= 20:
+            break
+        typer.echo('Invalid key - must be at least 20 characters')
+    
+    # Save to config
+    config = {}
+    if CONFIG_FILE.exists():
+        with open(CONFIG_FILE, 'r') as f:
+            config = json.load(f)
+    
+    config[f"{provider}_api_key"] = api_key
+    
+    with open(CONFIG_FILE, 'w') as f:
+        json.dump(config, f, indent=2)
+    
+    typer.echo(f"API key for {provider} set successfully")
+
 @config_app.command("unset")
-def config_unset(key: str):
+def config_unset(key: Optional[str] = None):
     """Remove a config value"""
+    if key is None:
+        config_unset_interactive()
+        return
+    
     if not CONFIG_FILE.exists():
         typer.echo("No configuration found")
         return
@@ -183,6 +261,40 @@ def config_unset(key: str):
         typer.echo(f"Config value '{key}' removed successfully")
     else:
         typer.echo(f"Config value '{key}' not found")
+
+def config_unset_interactive():
+    """Interactive config value removal"""
+    if not CONFIG_FILE.exists():
+        typer.echo("No configuration found")
+        return
+    
+    with open(CONFIG_FILE, 'r') as f:
+        config = json.load(f)
+    
+    if not config:
+        typer.echo("No configuration values to remove")
+        return
+    
+    # Import InquirerPy for interactive selection
+    try:
+        from InquirerPy import inquirer
+    except ImportError:
+        typer.echo("Installing required dependency for interactive selection...")
+        import subprocess
+        subprocess.check_call(["pip", "install", "InquirerPy"])
+        from InquirerPy import inquirer
+    
+    # Select key to remove
+    key = inquirer.select(
+        message="Select config value to remove:",
+        choices=list(config.keys()),
+    ).execute()
+    
+    del config[key]
+    with open(CONFIG_FILE, 'w') as f:
+        json.dump(config, f, indent=2)
+    
+    typer.echo(f"Config value '{key}' removed successfully")
 
 # Profile commands
 @profile_app.command("create")

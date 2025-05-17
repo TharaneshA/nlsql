@@ -1,24 +1,33 @@
 import requests
 import json
+from typing import Dict, Optional
+from .providers import AIProvider, ProviderConfig
 
-def call_gemini_api(prompt, api_key, temperature=0.2):
-    headers = {
-        "Content-Type": "application/json"
-    }
+def call_ai_api(prompt: str, provider_config: ProviderConfig, temperature: float = 0.2) -> str:
+    """Call the appropriate AI API based on the provider configuration."""
+    provider = AIProvider(provider_config.name)
+    api_key = provider_config.api_key
+    model = provider_config.model
+
+    if provider == AIProvider.GEMINI:
+        return call_gemini_api(prompt, api_key, model, temperature)
+    elif provider == AIProvider.OPENAI:
+        return call_openai_api(prompt, api_key, model, temperature)
+    elif provider == AIProvider.ANTHROPIC:
+        return call_anthropic_api(prompt, api_key, model, temperature)
+    elif provider == AIProvider.GROK:
+        return call_grok_api(prompt, api_key, model, temperature)
+    else:
+        raise ValueError(f"Unsupported AI provider: {provider}")
+
+def call_gemini_api(prompt: str, api_key: str, model: str, temperature: float) -> str:
+    headers = {"Content-Type": "application/json"}
     data = {
-        "contents": [
-            {
-                "parts": [
-                    {"text": prompt}
-                ]
-            }
-        ],
-        "generationConfig": {
-            "temperature": temperature
-        }
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": temperature}
     }
     response = requests.post(
-        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}",
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}",
         headers=headers,
         data=json.dumps(data)
     )
@@ -31,14 +40,59 @@ def call_gemini_api(prompt, api_key, temperature=0.2):
         raise Exception(f"API response format error: {str(e)}. Full response: {json.dumps(result, indent=2)}")
     return sql.strip()
 
-def generate_sql(nl_query, schema, api_key, temperature=0.2, history=None):
-    """Send a prompt to Gemini API to translate NL to SQL."""
-    if not api_key or len(api_key) < 20:
-        raise ValueError("Invalid Gemini API key. Please check your configuration.")
+def call_openai_api(prompt: str, api_key: str, model: str, temperature: float) -> str:
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": temperature
+    }
+    response = requests.post(
+        "https://api.openai.com/v1/chat/completions",
+        headers=headers,
+        json=data
+    )
+    if response.status_code != 200:
+        raise Exception(f"OpenAI API error: {response.status_code} {response.text}")
+    result = response.json()
+    return result.get('choices', [{}])[0].get('message', {}).get('content', '').strip()
+
+def call_anthropic_api(prompt: str, api_key: str, model: str, temperature: float) -> str:
+    headers = {
+        "x-api-key": api_key,
+        "Content-Type": "application/json"
+    }
+    data = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": temperature
+    }
+    response = requests.post(
+        "https://api.anthropic.com/v1/messages",
+        headers=headers,
+        json=data
+    )
+    if response.status_code != 200:
+        raise Exception(f"Anthropic API error: {response.status_code} {response.text}")
+    result = response.json()
+    return result.get('content', [{}])[0].get('text', '').strip()
+
+def call_grok_api(prompt: str, api_key: str, model: str, temperature: float) -> str:
+    # Placeholder for Grok API implementation
+    # Update this when Grok API becomes publicly available
+    raise NotImplementedError("Grok API support coming soon")
+
+def generate_sql(nl_query: str, schema: Dict, provider_config: ProviderConfig, temperature: float = 0.2, history: Optional[Dict | list] = None) -> str:
+    """Send a prompt to the selected AI provider to translate NL to SQL."""
+    if not provider_config.is_configured:
+        raise ValueError(f"Invalid {provider_config.name} configuration. Please check your API key.")
     
     # Validate API connectivity
     try:
-        test_response = call_gemini_api("Return ONLY the word 'success'", api_key)
+        test_response = call_ai_api("Return ONLY the word 'success'", provider_config)
         if 'success' not in test_response.lower():
             raise ValueError("API validation failed - unexpected response format")
     except Exception as test_error:
@@ -46,7 +100,7 @@ def generate_sql(nl_query, schema, api_key, temperature=0.2, history=None):
 
     # Build prompt with schema and history context
     prompt = build_prompt(nl_query, schema, history)
-    return call_gemini_api(prompt, api_key, temperature)
+    return call_ai_api(prompt, provider_config, temperature)
 
 def build_prompt(nl_query, schema, history=None):
     """Construct the prompt for Gemini API including schema context, sample data, and conversation history."""
