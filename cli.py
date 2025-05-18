@@ -665,9 +665,14 @@ def query(
         with open(CONFIG_FILE, 'r') as f:
             config = json.load(f)
     
-    api_key = config.get('gemini_api_key', '')
-    if not api_key:
-        typer.echo("API key not found. Run 'nlsql setup' or 'nlsql config set gemini_api_key=YOUR_KEY'")
+    # Get AI provider configuration
+    provider_config = None
+    if 'ai_provider' in config:
+        from ai.providers import ProviderConfig
+        provider_config = ProviderConfig.from_dict(config['ai_provider'])
+    
+    if not provider_config or not provider_config.is_configured:
+        typer.echo("AI provider not configured. Run 'nlsql setup' or configure your AI provider.")
         return
     
     # Generate SQL
@@ -696,7 +701,7 @@ def query(
             pass
     
     # Generate SQL with enhanced context
-    sql_query = generate_sql(text, schema, api_key, history=history)
+    sql_query = generate_sql(text, schema, provider_config, history=history)
     
     # Clean up SQL query by removing markdown formatting if present
     if sql_query.startswith('```'):
