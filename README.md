@@ -168,13 +168,16 @@ Basic query:
 nlsql query "Show me all users from New York"
 ```
 
-Options:
-- `--edit` (`-e`): Edit SQL before execution
-- `--execute` (`-x`): Execute the query
-- `--save <name>`: Save query for later use
-- `--format <format>`: Output format (table/json/csv)
-- `--export <file>`: Export results to file
-- `--explain`: Show query execution plan
+Query Options:
+| Option                  | Description                          |
+|-------------------------|--------------------------------------|
+| `--edit`, `-e`          | Edit SQL before execution            |
+| `--execute`, `-x`       | Execute the query                    |
+| `--save <name>`         | Save query for later use             |
+| `--format <format>`     | Output format (`table`/`json`/`csv`) |
+| `--export <file>`       | Export results to file               |
+| `--explain`             | Show query execution plan            |
+
 
 ### Saved Queries
 
@@ -202,7 +205,7 @@ nlsql profile use mydb
 
 2. Query with natural language:
 ```bash
-nlsql query "Find all orders placed in the last 7 days" --execute
+nlsql query "Find all orders placed in the last 7 days" -x
 ```
 
 3. Save and reuse a query:
