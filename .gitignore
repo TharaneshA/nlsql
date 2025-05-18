@@ -74,3 +74,5 @@ coverage.xml
 # Windows
 Thumbs.db
 Desktop.ini
+utils/__pycache__/config.cpython-310.pyc
+ai/__pycache__/translator.cpython-310.pyc
