@@ -9,6 +9,10 @@
 
 Convert natural language questions to SQL queries through a command-line interface.
 
+<h2>NLSQL Demo</h2>
+
+https://github.com/user-attachments/assets/58488a9b-bf64-4765-abbc-569a1dedad66
+
 ## Installation
 
 1. Clone the repository:
@@ -165,7 +169,7 @@ This will launch an interactive menu where you can:
 
 Basic query:
 ```bash
-nlsql query "Show me all users from New York"
+nlsql query "Show me all users from New York" -x
 ```
 
 Query Options:
